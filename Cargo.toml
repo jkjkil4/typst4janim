@@ -1,0 +1,39 @@
+[package]
+name = "typst4janim"
+version = "0.15.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "typst4janim"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Rust binding for Python
+pyo3 = "0.29.0"
+# Typst
+typst = "0.15.0"
+typst-kit = { version = "0.15.0", features = [
+    "embedded-fonts",
+    "scan-fonts",
+    "system-downloader",
+    "system-packages",
+    "vendor-openssl",
+    "datetime",
+    "emit-diagnostics",
+] }
+typst-layout = "0.15.0"
+typst-utils = "0.15.0"
+# Convert to numpy array
+ndarray = "0.17"
+numpy = "0.29"
+# utils
+rustc-hash = "2.1.3"
+pathdiff = "0.2.3"
+codespan-reporting = "0.11"
+indexmap = "2.14.0"
+ttf-parser = "0.25.1"
+
+[profile.profiling]
+inherits = "release"
+debug = true
