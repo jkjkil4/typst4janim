@@ -148,23 +148,21 @@ impl<'py> Collecter<'py> {
         &mut self,
         key: K, // -> id
         f: F,
-    ) -> PyResult<u128>
+    ) -> PyResult<(u128, Bound<'py, PyAny>)>
     where
         K: Hash,
         F: FnOnce(Python<'py>) -> PyResult<Bound<'py, PyAny>>,
     {
         let id = typst_utils::hash128(&key);
-
-        // Ensure the shared data
-        // If the `id`'s corresponding data does not exist, `f` will be called
-        match self.shared.entry(id) {
-            indexmap::map::Entry::Occupied(_) => {}
+        let data = match self.shared.entry(id) {
+            indexmap::map::Entry::Occupied(entry) => entry.get().clone(),
             indexmap::map::Entry::Vacant(entry) => {
-                entry.insert(f(self.py)?);
+                let data = f(self.py)?;
+                entry.insert(data.clone());
+                data
             }
-        }
-
-        Ok(id)
+        };
+        Ok((id, data))
     }
 
     /// Push an element

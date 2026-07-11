@@ -44,17 +44,22 @@ impl Collecter<'_> {
             let extract_points = |py| {
                 let mut builder = PathBuilder::new(scale as f32);
                 let points = match text.font.ttf().outline_glyph(glyph_id, &mut builder) {
-                    Some(_) => builder
-                        .build_array2()
-                        .map_err(|err| ConvertError::new_err(err.to_string()))?
-                        .into_pyarray(py)
-                        .into_bound_py_any(py)?,
-                    None => ().into_bound_py_any(py)?,
+                    Some(_) => Some(
+                        builder
+                            .build_array2()
+                            .map_err(|err| ConvertError::new_err(err.to_string()))?
+                            .into_pyarray(py),
+                    ),
+                    None => None,
                 };
-                Ok(points)
+                points.into_bound_py_any(py)
             };
 
-            let points_id = self.insert_shared_with(key, extract_points)?;
+            let (points_id, points) = self.insert_shared_with(key, extract_points)?;
+            // e.g. space
+            if points.is_none() {
+                return Ok(());
+            }
 
             let stroke = text
                 .stroke
