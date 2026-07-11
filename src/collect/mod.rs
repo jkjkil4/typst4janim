@@ -6,6 +6,7 @@ mod text;
 mod utils;
 mod warnings;
 
+use indexmap::map::RawEntryApiV1;
 pub use shape::ShapeInfo;
 pub use text::TextGlyphInfo;
 
@@ -184,8 +185,15 @@ impl<'py> Collecter<'py> {
 
         // Mark current element to each label in active-labels
         for label in self.active_labels.iter() {
-            if let Some(vec) = self.groups.get_mut(label) {
-                vec.push(nth);
+            use indexmap::map::raw_entry_v1::RawEntryMut;
+            // These strange operations are intended to avoid `label.clone()` in the `Occupied` situation
+            match self.groups.raw_entry_mut_v1().from_key(label) {
+                RawEntryMut::Occupied(mut entry) => {
+                    entry.get_mut().push(nth);
+                }
+                RawEntryMut::Vacant(entry) => {
+                    entry.insert(label.clone(), vec![nth]);
+                }
             }
         }
 
