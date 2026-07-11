@@ -5,9 +5,9 @@ use ttf_parser::GlyphId;
 use typst::{
     layout::{Abs, Ratio, Transform},
     text::{TextItem, color::should_outline},
-    visualize::Paint,
 };
 
+use crate::collect::utils::Rgba;
 use crate::{
     ConvertError,
     collect::{Collecter, path::PathBuilder},
@@ -41,18 +41,6 @@ impl Collecter<'_> {
             let scale = text.size.to_pt() / text.font.units_per_em();
             let key = (&text.font, glyph_id, Ratio::new(scale));
 
-            let stroke = text
-                .stroke
-                .as_ref()
-                .map(|stroke| (self.extract_rgb(&stroke.paint), stroke.thickness.to_pt()));
-
-            let info = TextGlyphInfo {
-                fill_rgba: self.extract_rgb(&text.fill),
-                stroke_rgba: stroke.map(|s| s.0),
-                stroke_thickness: stroke.map(|s| s.1),
-            }
-            .into_bound_py_any(self.py)?;
-
             let extract_points = |py| {
                 let mut builder = PathBuilder::new(scale as f32);
                 let points = match text.font.ttf().outline_glyph(glyph_id, &mut builder) {
@@ -66,33 +54,33 @@ impl Collecter<'_> {
                 Ok(points)
             };
 
-            self.insert_with(key, extract_points, "TextGlyph".into(), ts, info)?;
+            let points_id = self.insert_shared_with(key, extract_points)?;
+
+            let stroke = text
+                .stroke
+                .as_ref()
+                .map(|stroke| (self.extract_rgb(&stroke.paint), stroke.thickness.to_pt()));
+
+            let info = TextGlyphInfo {
+                points_id,
+                fill_rgba: self.extract_rgb(&text.fill),
+                stroke_rgba: stroke.map(|s| s.0),
+                stroke_thickness: stroke.map(|s| s.1),
+            }
+            .into_bound_py_any(self.py)?;
+
+            self.insert_element("TextGlyph".into(), ts, info)?;
         } else {
             self.add_warning(super::ExportWarning::ImageGlyphNotSupported);
         }
         Ok(())
     }
-
-    fn extract_rgb(&mut self, paint: &Paint) -> Rgba {
-        match paint {
-            Paint::Solid(color) => color.to_rgb().into_components(),
-            Paint::Gradient(_) => {
-                self.add_warning(super::ExportWarning::GradientNotSupprted);
-                (1.0, 1.0, 1.0, 1.0)
-            }
-            Paint::Tiling(_) => {
-                self.add_warning(super::ExportWarning::TilingNotSupported);
-                (1.0, 1.0, 1.0, 1.0)
-            }
-        }
-    }
 }
 
-type Rgba = (f32, f32, f32, f32);
-
 #[pyclass(module = "typst4janim", frozen, skip_from_py_object)]
-#[derive(Clone)]
 pub struct TextGlyphInfo {
+    #[pyo3(get)]
+    points_id: u128,
     #[pyo3(get)]
     fill_rgba: Rgba,
     #[pyo3(get)]

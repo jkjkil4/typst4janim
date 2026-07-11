@@ -25,9 +25,7 @@ pub mod typst4janim {
     use crate::{TypstError, collect};
 
     #[pymodule_export]
-    use collect::TextGlyphInfo;
-    #[pymodule_export]
-    use collect::{Collected, Element};
+    use collect::{Collected, Element, ShapeInfo, TextGlyphInfo};
 
     #[pyfunction]
     #[pyo3(signature = (

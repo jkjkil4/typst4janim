@@ -1,5 +1,6 @@
 use ndarray::{Array2, ShapeError};
 use ttf_parser::OutlineBuilder;
+use typst::layout::Point;
 
 use crate::collect::bezier::get_quadratic_approximation_of_cubic;
 
@@ -120,4 +121,34 @@ impl OutlineBuilder for PathBuilder {
             }
         }
     }
+}
+
+impl PathBuilder {
+    pub fn move_to_point(&mut self, point: Point) {
+        let xy = point_to_xy(point);
+        self.move_to(xy.0, xy.1);
+    }
+
+    pub fn line_to_point(&mut self, point: Point) {
+        let xy = point_to_xy(point);
+        self.line_to(xy.0, xy.1);
+    }
+
+    #[allow(unused)]
+    pub fn quad_to_point(&mut self, control: Point, point: Point) {
+        let c = point_to_xy(control);
+        let xy = point_to_xy(point);
+        self.quad_to(c.0, c.1, xy.0, xy.1);
+    }
+
+    pub fn curve_to_point(&mut self, control1: Point, control2: Point, point: Point) {
+        let c1 = point_to_xy(control1);
+        let c2 = point_to_xy(control2);
+        let xy = point_to_xy(point);
+        self.curve_to(c1.0, c1.1, c2.0, c2.1, xy.0, xy.1);
+    }
+}
+
+fn point_to_xy(point: Point) -> (f32, f32) {
+    (point.x.to_pt() as f32, point.y.to_pt() as f32)
 }

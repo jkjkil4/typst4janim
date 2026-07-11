@@ -1,8 +1,12 @@
 mod bezier;
+mod image;
 mod path;
+mod shape;
 mod text;
+mod utils;
 mod warnings;
 
+pub use shape::ShapeInfo;
 pub use text::TextGlyphInfo;
 
 use std::hash::Hash;
@@ -10,8 +14,8 @@ use std::hash::Hash;
 use indexmap::IndexMap;
 use ndarray::Array2;
 use numpy::{IntoPyArray, PyArray2};
-use pyo3::types::{PyDict, PyList, PyTuple};
-use pyo3::{IntoPyObjectExt, prelude::*};
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 
 use rustc_hash::FxBuildHasher;
 
@@ -60,7 +64,7 @@ struct Collecter<'py> {
     // Final results
     elements: Vec<Element>,
     shared: IndexMap<u128, Bound<'py, PyAny>, FxBuildHasher>,
-    groups: IndexMap<String, Vec<u128>>,
+    groups: IndexMap<String, Vec<usize>>,
     warnings: Vec<ExportWarning>,
 }
 
@@ -68,8 +72,6 @@ struct Collecter<'py> {
 pub struct Element {
     #[pyo3(get)]
     pub elemtype: String,
-    #[pyo3(get)]
-    pub id: u128,
     #[pyo3(get)]
     pub transform: Py<PyArray2<f32>>,
     #[pyo3(get)]
@@ -115,14 +117,11 @@ impl<'py> Collecter<'py> {
         }
     }
 
-    fn insert_with<K, F>(
+    fn insert_shared_with<K, F>(
         &mut self,
         key: K, // -> id
         f: F,
-        elemtype: String,
-        transform: Transform,
-        info: Bound<'py, PyAny>,
-    ) -> PyResult<()>
+    ) -> PyResult<u128>
     where
         K: Hash,
         F: FnOnce(Python<'py>) -> PyResult<Bound<'py, PyAny>>,
@@ -138,10 +137,20 @@ impl<'py> Collecter<'py> {
             }
         }
 
+        Ok(id)
+    }
+
+    fn insert_element(
+        &mut self,
+        elemtype: String,
+        transform: Transform,
+        info: Bound<'py, PyAny>,
+    ) -> PyResult<()> {
+        let nth = self.elements.len();
+
         // Make element
         let elem = Element {
             elemtype,
-            id,
             transform: ts_pyarray(self.py, transform)?,
             info: info.unbind(),
         };
@@ -150,7 +159,7 @@ impl<'py> Collecter<'py> {
         // Mark current element to each label in active-labels
         for label in self.active_labels.iter() {
             if let Some(vec) = self.groups.get_mut(label) {
-                vec.push(id);
+                vec.push(nth);
             }
         }
 
@@ -187,12 +196,11 @@ impl<'py> Collecter<'py> {
 
 impl Collecter<'_> {
     fn collect_page(&mut self, ts: Transform, page: &Page) -> PyResult<()> {
-        // TODO: uncomment
-        // if let Some(fill) = page.fill_or_white() {
-        //     let shape = Geometry::Rect(page.frame.size() + page.bleed.sum_by_axis()).filled(fill);
-        //     let ts = ts.pre_concat(Transform::translate(-page.bleed.left, -page.bleed.top));
-        //     collect_shape(args, ts, &shape)?;
-        // }
+        if let Some(fill) = page.fill_or_white() {
+            let shape = Geometry::Rect(page.frame.size() + page.bleed.sum_by_axis()).filled(fill);
+            let ts = ts.pre_concat(Transform::translate(-page.bleed.left, -page.bleed.top));
+            self.collect_shape(ts, &shape)?;
+        }
         self.collect_frame(ts, &page.frame)
     }
 
@@ -202,12 +210,10 @@ impl Collecter<'_> {
             match item {
                 FrameItem::Group(group) => self.collect_group(ts, group)?,
                 FrameItem::Text(text) => self.collect_text(ts, text)?,
-                // TODO: uncomment
-                // FrameItem::Shape(shape, _) => collect_shape(args, ts, shape),
-                // FrameItem::Image(image, size, _) => collect_image(args, ts, image, size),
+                FrameItem::Shape(shape, _) => self.collect_shape(ts, shape)?,
+                FrameItem::Image(image, size, _) => self.collect_image(ts, image, size)?,
                 FrameItem::Link(_, _) => {} // Link is just a transparent rectangle overlay, so we can ignore it
                 FrameItem::Tag(_) => {}     // Maybe something related to HTML output
-                _ => {}
             };
         }
         Ok(())

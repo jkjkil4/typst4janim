@@ -3,6 +3,7 @@ pub enum ExportWarning {
     ImageGlyphNotSupported,
     GradientNotSupprted,
     TilingNotSupported,
+    ImageNotSupported,
 }
 
 impl ExportWarning {
@@ -12,6 +13,7 @@ impl ExportWarning {
             ExportWarning::ImageGlyphNotSupported => "ImageGlyphNotSupported",
             ExportWarning::GradientNotSupprted => "GradientNotSupported",
             ExportWarning::TilingNotSupported => "TilingNotSupported",
+            ExportWarning::ImageNotSupported => "ImageNotSupported",
         }
     }
 }
