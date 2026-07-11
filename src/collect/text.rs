@@ -79,12 +79,16 @@ impl Collecter<'_> {
 
 #[pyclass(module = "typst4janim", frozen, skip_from_py_object)]
 pub struct TextGlyphInfo {
+    /// id, reference to the Bézier points in `shared`
     #[pyo3(get)]
     points_id: u128,
+    /// Fill RGBA, each component value is in the range `0.0~1.0`
     #[pyo3(get)]
     fill_rgba: Rgba,
+    /// Stroke RGBA, each component value is in the range `0.0~1.0`
     #[pyo3(get)]
     stroke_rgba: Option<Rgba>,
+    /// Stroke thickness, divide by 2 to get JAnim's `stroke_radius`
     #[pyo3(get)]
     stroke_thickness: Option<f64>,
 }

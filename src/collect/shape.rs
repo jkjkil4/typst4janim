@@ -71,12 +71,16 @@ fn convert_geometry_to_points<'py>(
 
 #[pyclass(module = "typst4janim", frozen, skip_from_py_object)]
 pub struct ShapeInfo {
+    /// Bézier points
     #[pyo3(get)]
     points: Py<PyArray2<f32>>,
+    /// Fill RGBA, each component value is in the range `0.0~1.0`
     #[pyo3(get)]
     fill_rgba: Option<Rgba>,
+    /// Stroke RGBA, each component value is in the range `0.0~1.0`
     #[pyo3(get)]
     stroke_rgba: Option<Rgba>,
+    /// Stroke thickness, divide by 2 to get JAnim's `stroke_radius`
     #[pyo3(get)]
     stroke_thickness: Option<f64>,
 }

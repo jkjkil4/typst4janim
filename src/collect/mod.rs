@@ -26,6 +26,9 @@ use typst_layout::{Page, PagedDocument};
 use crate::collect::warnings::ExportWarning;
 use crate::{ConvertError, TypstError};
 
+/// Export `document`'s first page into [`Collected`] struct
+///
+/// Returns [`TypstError`] is the document has more than one page
 pub fn export_to_python<'py>(
     py: Python<'py>,
     document: PagedDocument,
@@ -55,37 +58,59 @@ fn page_bleed(page: &Page) -> (Size, Transform) {
     (size, ts)
 }
 
+/// Helps collecting elements in a Typst page
+///
+/// The (single) page's frame tree is walked through [Collecter::collect_page],
+/// and every supported item is converted into an [Element]
+///
+/// Finally, everything collected is returned to Python inside a [Collected] object
 struct Collecter<'py> {
+    /// Python instance, for binding Python objects
     py: Python<'py>,
 
-    // Temporary states
+    /// Meaning which groups the current element is inside,
+    /// used for generating [`Collecter::groups`]
     active_labels: Vec<String>,
 
-    // Final results
+    // Final results, see `Collected` for docstrings
     elements: Vec<Element>,
     shared: IndexMap<u128, Bound<'py, PyAny>, FxBuildHasher>,
     groups: IndexMap<String, Vec<usize>>,
     warnings: Vec<ExportWarning>,
 }
 
+/// Representing one element in Typst page
 #[pyclass(module = "typst4janim", frozen, skip_from_py_object)]
 pub struct Element {
+    /// Element type
     #[pyo3(get)]
     pub elemtype: String,
+    /// Element transform as a 2x3 matrix
+    /// - Left 2x2: 2D linear transformation
+    /// - Right 2x1: 2D translation
     #[pyo3(get)]
     pub transform: Py<PyArray2<f32>>,
+    /// Additional element infomation, differs accroding to the element type
     #[pyo3(get)]
     pub info: Py<PyAny>,
 }
 
 #[pyclass(module = "typst4janim", frozen, skip_from_py_object)]
 pub struct Collected {
+    /// Collected elements in a Typst page
     #[pyo3(get)]
     elements: Vec<Py<Element>>,
+    /// Shared datas of elements, e.g. same text with different position
+    /// - Key (`int`): id
+    /// - Value (`Any`): The specific data
     #[pyo3(get)]
     shared: Py<PyDict>,
+    /// Element groups infomation
+    /// - Key (`str`): Label name
+    /// - Value (`list[int]`): Group members, every number representing an index in `elements`
     #[pyo3(get)]
     groups: Py<PyDict>,
+    /// Warnings emitted during the collecting process, store as a `list[str]`
     #[pyo3(get)]
     warnings: Py<PyList>,
 }
@@ -102,6 +127,7 @@ impl<'py> Collecter<'py> {
         }
     }
 
+    /// Automatically pushes `label` before calling `f`, and pops it afterwards
     fn with_label<F, R>(&mut self, label: Option<String>, f: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
@@ -117,6 +143,7 @@ impl<'py> Collecter<'py> {
         }
     }
 
+    /// Initialize shared data if `key` is not present
     fn insert_shared_with<K, F>(
         &mut self,
         key: K, // -> id
@@ -140,6 +167,7 @@ impl<'py> Collecter<'py> {
         Ok(id)
     }
 
+    /// Push an element
     fn insert_element(
         &mut self,
         elemtype: String,
@@ -151,7 +179,7 @@ impl<'py> Collecter<'py> {
         // Make element
         let elem = Element {
             elemtype,
-            transform: ts_pyarray(self.py, transform)?,
+            transform: ts_to_pyarray(self.py, transform)?,
             info: info.unbind(),
         };
         self.elements.push(elem);
@@ -166,10 +194,12 @@ impl<'py> Collecter<'py> {
         Ok(())
     }
 
+    /// Push an warning
     fn add_warning(&mut self, warning: ExportWarning) {
         self.warnings.push(warning);
     }
 
+    /// Finish collecting the Typst page, returns [Collected]
     fn finish(self) -> PyResult<Bound<'py, Collected>> {
         let py = self.py;
 
@@ -231,27 +261,25 @@ impl Collecter<'_> {
     }
 }
 
-fn ts_pyarray<'py>(py: Python<'py>, t: Transform) -> PyResult<Py<PyArray2<f32>>> {
+/// Converts a [Transform] object into a numpy array [PyArray2]
+fn ts_to_pyarray<'py>(py: Python<'py>, ts: Transform) -> PyResult<Py<PyArray2<f32>>> {
     Array2::from_shape_vec(
-        (3, 3),
+        (2, 3),
         vec![
-            t.sx.get() as f32,
-            t.kx.get() as f32,
-            t.tx.to_pt() as f32,
+            ts.sx.get() as f32,
+            ts.kx.get() as f32,
+            ts.tx.to_pt() as f32,
             //
-            t.ky.get() as f32,
-            t.sy.get() as f32,
-            t.ty.to_pt() as f32,
-            //
-            0.0,
-            0.0,
-            1.0,
+            ts.ky.get() as f32,
+            ts.sy.get() as f32,
+            ts.ty.to_pt() as f32,
         ],
     )
     .map(|matrix| matrix.into_pyarray(py).unbind())
     .map_err(|err| ConvertError::new_err(err.to_string()))
 }
 
+/// Converts a map (iterator) into a [PyDict] object
 fn to_pydict<'py, K, V, I>(py: Python<'py>, items: I) -> PyResult<Bound<'py, PyDict>>
 where
     K: IntoPyObject<'py>,

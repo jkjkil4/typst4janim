@@ -27,6 +27,8 @@ pub mod typst4janim {
     #[pymodule_export]
     use collect::{Collected, Element, ShapeInfo, TextGlyphInfo};
 
+    /// Compile a Typst document (passing as `bytes`),
+    /// collect its elements, and return as a `Collected` object
     #[pyfunction]
     #[pyo3(signature = (
         input: "bytes",
@@ -85,6 +87,7 @@ pub mod typst4janim {
         }
     }
 
+    /// Resets the cached discovered fonts; discovery will be triggered again on the next `compile` call
     #[pyfunction]
     fn reset_fonts<'py>(_py: Python<'py>) {
         fonts::reset_fonts();
