@@ -130,7 +130,7 @@ impl<'py> Collecter<'py> {
         let id = typst_utils::hash128(&key);
 
         // Ensure the shared data
-        // If the `id`'s corresponding data is not setup, `f` will be called
+        // If the `id`'s corresponding data does not exist, `f` will be called
         match self.shared.entry(id) {
             indexmap::map::Entry::Occupied(_) => {}
             indexmap::map::Entry::Vacant(entry) => {
@@ -147,7 +147,7 @@ impl<'py> Collecter<'py> {
         };
         self.elements.push(elem);
 
-        // Mark active-labels to current element
+        // Mark current element to each label in active-labels
         for label in self.active_labels.iter() {
             if let Some(vec) = self.groups.get_mut(label) {
                 vec.push(id);

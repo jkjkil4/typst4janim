@@ -9,7 +9,7 @@ create_exception!(typst4janim, TypstError, PyRuntimeError);
 create_exception!(typst4janim, ConvertError, PyRuntimeError);
 
 #[pymodule]
-mod typst4janim {
+pub mod typst4janim {
     use std::{collections::HashMap, path::PathBuf};
 
     use pyo3::prelude::*;
@@ -31,7 +31,7 @@ mod typst4janim {
 
     #[pyfunction]
     #[pyo3(signature = (
-        input,
+        input: "bytes",
         sys_inputs = HashMap::new(),
         root = None,
         package_path = None,
