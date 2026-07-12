@@ -20,16 +20,16 @@ use pyo3::types::{PyDict, PyList};
 
 use rustc_hash::FxBuildHasher;
 
-use typst::layout::{Frame, FrameItem, GroupItem, Size, Transform};
+use typst::layout::{Abs, Axes, Frame, FrameItem, GroupItem, Size, Transform};
 use typst::visualize::Geometry;
 use typst_layout::{Page, PagedDocument};
 
 use crate::collect::warnings::ExportWarning;
 use crate::{ConvertError, TypstError};
 
-/// Export `document`'s first page into [`Collected`] struct
+/// Export `document`'s first page into [Collected] struct
 ///
-/// Returns [`TypstError`] is the document has more than one page
+/// Returns [TypstError] is the document has more than one page
 pub fn export_to_python<'py>(
     py: Python<'py>,
     document: PagedDocument,
@@ -45,11 +45,11 @@ pub fn export_to_python<'py>(
     let page = pages.first().unwrap();
     // `size` is used for Gradient and Tiling
     // For further implementation, consider processing it
-    let (_size, ts) = page_bleed(page);
+    let (size, ts) = page_bleed(page);
 
     let mut collecter = Collecter::new(py);
     collecter.collect_page(ts, page)?;
-    collecter.finish()
+    collecter.finish(size)
 }
 
 fn page_bleed(page: &Page) -> (Size, Transform) {
@@ -98,6 +98,9 @@ pub struct Element {
 
 #[pyclass(module = "typst4janim", frozen, skip_from_py_object)]
 pub struct Collected {
+    /// Page size
+    #[pyo3(get)]
+    size: (f64, f64),
     /// Collected elements in a Typst page
     #[pyo3(get)]
     elements: Vec<Py<Element>>,
@@ -206,7 +209,7 @@ impl<'py> Collecter<'py> {
     }
 
     /// Finish collecting the Typst page, returns [Collected]
-    fn finish(self) -> PyResult<Bound<'py, Collected>> {
+    fn finish(self, size: Axes<Abs>) -> PyResult<Bound<'py, Collected>> {
         let py = self.py;
 
         let elements = {
@@ -221,6 +224,7 @@ impl<'py> Collecter<'py> {
         let warnings = PyList::new(py, self.warnings.iter().map(|w| w.as_str()))?.unbind();
 
         Collected {
+            size: (size.x.to_pt(), size.y.to_pt()),
             elements,
             shared,
             groups,
