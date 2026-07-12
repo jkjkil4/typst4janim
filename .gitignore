@@ -1,5 +1,7 @@
 profile.json.gz
+profile.kernel.etl
 .VSCodeCounter
+activate.bat
 
 /target
 
