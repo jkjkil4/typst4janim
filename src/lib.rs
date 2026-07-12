@@ -20,10 +20,12 @@ pub mod typst4janim {
     use typst_kit::diagnostics::DiagnosticWorld;
     use typst_layout::PagedDocument;
 
+    use crate::collect;
     use crate::typst::world::{PathArgs, SystemWorld};
     use crate::typst::{fonts, terminal};
-    use crate::{TypstError, collect};
 
+    #[pymodule_export]
+    use super::{ConvertError, TypstError};
     #[pymodule_export]
     use collect::{Collected, Element, ShapeInfo, TextGlyphInfo};
 
@@ -42,7 +44,7 @@ pub mod typst4janim {
         sys_inputs: HashMap<String, String>,
         root: Option<PathBuf>,
         package_path: Option<PathBuf>,
-    ) -> PyResult<Bound<'py, collect::Collected>> {
+    ) -> PyResult<Bound<'py, Collected>> {
         fonts::with_fonts(|fonts| {
             let path_args = PathArgs {
                 root,
