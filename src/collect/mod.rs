@@ -16,7 +16,7 @@ use indexmap::IndexMap;
 use ndarray::Array2;
 use numpy::{IntoPyArray, PyArray2};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::{IntoPyDict, PyDict, PyList};
 
 use rustc_hash::FxBuildHasher;
 
@@ -219,8 +219,8 @@ impl<'py> Collecter<'py> {
             }
             result
         };
-        let shared = to_pydict(py, self.shared)?.unbind();
-        let groups = to_pydict(py, self.groups)?.unbind();
+        let shared = self.shared.iter().into_py_dict(py)?.unbind();
+        let groups = self.groups.iter().into_py_dict(py)?.unbind();
         let warnings = PyList::new(py, self.warnings.iter().map(|w| w.as_str()))?.unbind();
 
         Collected {
@@ -287,18 +287,4 @@ fn ts_to_pyarray<'py>(py: Python<'py>, ts: Transform) -> PyResult<Py<PyArray2<f3
     )
     .map(|matrix| matrix.into_pyarray(py).unbind())
     .map_err(|err| ConvertError::new_err(err.to_string()))
-}
-
-/// Converts a map (iterator) into a [PyDict] object
-fn to_pydict<'py, K, V, I>(py: Python<'py>, items: I) -> PyResult<Bound<'py, PyDict>>
-where
-    K: IntoPyObject<'py>,
-    V: IntoPyObject<'py>,
-    I: IntoIterator<Item = (K, V)>,
-{
-    let dict = PyDict::new(py);
-    for (k, v) in items {
-        dict.set_item(k, v)?;
-    }
-    Ok(dict)
 }

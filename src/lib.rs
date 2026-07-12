@@ -38,7 +38,7 @@ pub mod typst4janim {
         root = None,
         package_path = None,
     ))]
-    fn compile<'py>(
+    pub fn compile<'py>(
         py: Python<'py>,
         input: Vec<u8>,
         sys_inputs: HashMap<String, String>,
