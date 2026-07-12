@@ -40,6 +40,8 @@ impl<'a> SystemWorld<'a> {
         // Internal parameters
         fonts: &'a FontStore,
     ) -> Result<Self, String> {
+        // TODO: rayon initialization?
+
         let library = {
             let inputs = Dict::from_iter(
                 sys_inputs
