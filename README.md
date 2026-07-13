@@ -11,6 +11,8 @@ A call to `compile` flows through two stages:
 1. **Compile** (`src/typst/`) — a Typst `World` is assembled, and the document is compiled into a `PagedDocument`.
 2. **Collect** (`src/collect/`) — the (single) page's frame tree is walked, and every supported item is converted into an `Element`, which is returned to Python inside a `Collected` object.
 
+The implementation of `src/typst/` closely follows `SystemWorld` from `typst-cli`, while `src/collect/` follows the approach of `SVGRenderer` from `typst-svg`.
+
 A few conventions run across the collect stage:
 
 - Curves are emitted as **quadratic** Bézier points to match JAnim's item model; cubic segments from font outlines and Typst geometries are approximated on the fly.
