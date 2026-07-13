@@ -4,6 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "typst4janim"
+readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Rust",
